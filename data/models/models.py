@@ -14,16 +14,16 @@ class User(Base):
     password = Column(String(255), nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
-    user_cources = relationship('UserCources', back_populates='user')
+    user_courses = relationship('UserCourse', back_populates='user')
 
 
-class UserCources(Base):
-    __tablename__ = 'user_cources'
+class UserCourse(Base):
+    __tablename__ = 'user_courses'
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    cource_name = Column(String, nullable=False)
+    course_name = Column(String, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    cource_filds = Column(JSON, nullable=False)
-    cource_info = Column(JSON, nullable=True)
+    course_filds = Column(JSON, nullable=False)
+    course_info = Column(JSON, nullable=True)
 
-    user = relationship('User', back_populates='user_cources')
+    user = relationship('User', back_populates='user_courses')
