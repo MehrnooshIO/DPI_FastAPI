@@ -17,3 +17,15 @@ def create_token(id: int) -> str:
         encryption_config["ALGORITHM"]
     )
     return token
+
+
+def decode_token(token: str) -> dict:
+    return jwt.decode(
+        token,
+        encryption_config["SECRET_KEY"],
+        algorithms=[encryption_config["ALGORITHM"]]
+    )
+
+
+def get_user_id_from_token(token: str) -> int:
+    return decode_token(token)["id"]
