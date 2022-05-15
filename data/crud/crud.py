@@ -1,4 +1,4 @@
-from ..models.models import Base, User, UserCourse
+from data.models.models import Base, User, UserCourse
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
