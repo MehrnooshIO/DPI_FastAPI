@@ -1,10 +1,9 @@
 from datetime import datetime
-from sqlalchemy import create_engine
 from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship
+from data.database import Base
 
 
-Base = declarative_base()
 
 
 class User(Base):
