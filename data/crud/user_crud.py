@@ -4,13 +4,15 @@ from data.database import Base, engine
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+from typing import Optional
+
 
 # TODO: Move this to start up file
 Base.metadata.create_all(engine)
 
 
 # Retrieve a user from database by id
-def db_get_user_by_id(user_id: int, db: Session) -> User | None:
+def db_get_user_by_id(user_id: int, db: Session) -> Optional[User]:
     """This function retrieves a user from the database by id.
 
     Args:
@@ -25,7 +27,7 @@ def db_get_user_by_id(user_id: int, db: Session) -> User | None:
 
 
 # Retrieve a user from database by email
-def db_get_user_by_email(user_email: str, db: Session) -> User | None:
+def db_get_user_by_email(user_email: str, db: Session) -> Optional[User]:
     """This function retrieves a user from the database by email.
 
     Args:

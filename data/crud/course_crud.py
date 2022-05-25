@@ -5,13 +5,15 @@ from data.database import engine
 from sqlalchemy import JSON, create_engine
 from sqlalchemy.orm import Session
 
+from typing import Optional
+
 
 def db_create_user_course(
     user_id,
     course_name,
     course_filds,
     db: Session
-    ) -> None | Error:
+    ) -> Optional[Error]:
     """This function creates a new course for a user
 
     Args:
@@ -52,7 +54,7 @@ def db_get_user_courses(user_id, db: Session) -> list[UserCourse]:
     return user_courses
 
 
-def db_get_course_by_id(course_id: int, db: Session) -> UserCourse | None:
+def db_get_course_by_id(course_id: int, db: Session) -> Optional[UserCourse]:
     """This function return the course details based on course id
 
     Args:
@@ -66,7 +68,7 @@ def db_get_course_by_id(course_id: int, db: Session) -> UserCourse | None:
     return course
 
 
-def db_update_course(course_id: int, course_info: dict, db: Session) -> None | Error:
+def db_update_course(course_id: int, course_info: dict, db: Session) -> Optional[Error]:
     """This function updates the course details based on course id
 
     Args:

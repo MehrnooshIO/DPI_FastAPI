@@ -23,7 +23,8 @@ def auth_router() -> APIRouter:
         if user:
             response.status_code = status.HTTP_409_CONFLICT
             return {
-                "status": "error",
+                "statusCode": status.HTTP_409_CONFLICT,
+                "title": "error",
                 "message": "User with this email already exists"
             }
         hashed_pass = encrypt_password(user_input.password)

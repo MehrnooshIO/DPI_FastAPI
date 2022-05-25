@@ -5,6 +5,7 @@ from config import encryption_config
 from fastapi.security import OAuth2PasswordBearer
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
+
 def encrypt_password(password: str) -> str:
     return sha256_crypt.hash(password)
 
