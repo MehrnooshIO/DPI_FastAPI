@@ -107,6 +107,7 @@ def course_router() -> APIRouter:
             }
 
 
+    # FIXME: Handling wrong token
     # Create a new course for a user
     @course_router.post("/courses")
     def create_course(
@@ -115,6 +116,16 @@ def course_router() -> APIRouter:
         token: str = Depends(oauth2_scheme),
         db: Session = Depends(get_db),
     ):
+        course = course_crud.db_get_course_by_name(course_input.name)
+        if course:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "statusCode": status.HTTP_409_CONFLICT,
+                    "title": "Conflict",
+                    "statusText": "دوره دیگری با این نام وجود دارد",
+                }
+            )
         try:
             id = get_user_id_from_token(token)
             course_id = course_crud.db_create_user_course(
@@ -126,8 +137,8 @@ def course_router() -> APIRouter:
             response.status_code = status.HTTP_201_CREATED
             return {
                 "statusCode": status.HTTP_201_CREATED,
-                "title": "Success",
-                "statusText": "OK",
+                "title": "Created",
+                "statusText": "دوره جدید ایجاد شد",
             }
         except Exception as e:
             raise HTTPException(

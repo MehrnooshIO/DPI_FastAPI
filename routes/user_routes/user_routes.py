@@ -24,19 +24,19 @@ def auth_router() -> APIRouter:
             response.status_code = status.HTTP_409_CONFLICT
             return {
                 "statusCode": status.HTTP_409_CONFLICT,
-                "title": "error",
-                "message": "User with this email already exists"
+                "title": "user already exists",
+                "errorMessage": "با این آدرس ایمیل حساب کاربری دیگری ایجاد شده است"
             }
         hashed_pass = encrypt_password(user_input.password)
         user_id = user_crud.db_create_user(user_input.email, hashed_pass, db)
         return {
             "statusCode": status.HTTP_201_CREATED,
-            "title": "Success",
-            "statusText": "User created successfully",
+            "title": "Successful",
+            "messsage": "حساب کاربری شما ایجاد شد",
         }
 
     # Handles user login and return a token if user is valid
-    @user_router.post("/token")
+    @user_router.post("/login")
     def login(user_input: UserSchema, db: Session = Depends(get_db)):
         user = user_crud.db_get_user_by_email(user_input.email, db)
         if not user:
@@ -44,34 +44,60 @@ def auth_router() -> APIRouter:
         hashed_pass = encrypt_password(user_input.password)
         if not check_password(user_input.password, user.password):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_403_FORBIDDEN,
                 detail={
-                    "statusCode": status.HTTP_400_BAD_REQUEST,
-                    "title": "Wrong Credential",
-                    "statusText": "Bad Request",
-                    "errorText": "Username or Password is incorrect"
+                    "statusCode": status.HTTP_403_FORBIDDEN,
+                    "title": "forbidden",
+                    "statusText": "نام کاربری یا رمز عبور اشتباه است"
                 }
             )
         else:
             token = create_token(user.id)
             return {
                 "statusCode": status.HTTP_200_OK,
-                "title": "Success",
-                "statusText": "OK",
-                "token": token,
+                "title": "Successful",
+                "accessToken": token,
             }
 
     # Returns the list of all users
     @user_router.get("/users")
     def get_users(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
         users = user_crud.db_get_users(db)
-        return users
+        data = []
+        for user in users:
+            data.append({
+                "id": user.id,
+                "email": user.email,
+                "creation date": user.created_at,
+            })
+        return {
+                "statusCode": status.HTTP_200_OK,
+                "title": "Success",
+                "statusText": data,
+            }
 
     # Returns details of current user
     @user_router.get("/users/me")
     def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-        id = get_user_id_from_token(token)
-        user = user_crud.db_get_user_by_id(id, db)
-        return user
+        try:
+            id = get_user_id_from_token(token)
+        
+            user = user_crud.db_get_user_by_id(id, db)
+            data = {
+                "id": user.id,
+                "email": user.email,
+                "creation date": user.created_at,
+            }
+            return {
+                    "statusCode": status.HTTP_200_OK,
+                    "title": "Success",
+                    "statusText": data,
+                }
+        except:
+            return {
+                    "statusCode": status.HTTP_400_BAD_REQUEST,
+                    "title": "Wrong Credential",
+                    "statusText": "ایمیل یا رمز عبور نادرست است"
+                }
 
     return user_router

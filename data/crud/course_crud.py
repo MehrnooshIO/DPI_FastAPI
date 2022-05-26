@@ -84,3 +84,8 @@ def db_update_course(course_id: int, course_info: dict, db: Session) -> Optional
         return
     except Exception as e:
         return e
+
+
+def db_get_course_by_name(course_name: str, db: Session) -> Optional[UserCourse]:
+    course = db.query(UserCourse).filter(UserCourse.course_name == course_name).first()
+    return course
