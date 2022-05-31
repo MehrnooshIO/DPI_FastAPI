@@ -4,5 +4,5 @@ from pydantic import BaseModel
 
 class CourseSchema(BaseModel):
     name: str
-    fields: dict
+    fields: list[dict]
     info: Optional[dict] = None

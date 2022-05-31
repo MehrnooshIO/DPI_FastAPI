@@ -56,6 +56,7 @@ def auth_router() -> APIRouter:
             return {
                 "statusCode": status.HTTP_200_OK,
                 "title": "Successful",
+                "message": "خوش آمدید",
                 "accessToken": token,
             }
 

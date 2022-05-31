@@ -1,6 +1,7 @@
 from aifc import Error
 from data.models.models import UserCourse
 from data.database import engine
+from helper.link import create_link
 
 from sqlalchemy import JSON, create_engine
 from sqlalchemy.orm import Session
@@ -31,6 +32,7 @@ def db_create_user_course(
         course_name=course_name,
         course_filds=course_filds,
         course_info=None,
+        course_link= create_link()
         )
         db.add(user_course)
         db.commit()
@@ -88,4 +90,9 @@ def db_update_course(course_id: int, course_info: dict, db: Session) -> Optional
 
 def db_get_course_by_name(course_name: str, db: Session) -> Optional[UserCourse]:
     course = db.query(UserCourse).filter(UserCourse.course_name == course_name).first()
+    return course 
+
+def db_get_all_courses(db:Session):
+    course=db.query(UserCourse).all()
     return course
+    

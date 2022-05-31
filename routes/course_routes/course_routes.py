@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Response, status, HTTPException
 from sqlalchemy.orm import Session
+from data.crud.course_crud import db_get_all_courses
 from data.crud import course_crud
 from data.schemas.course_schema import CourseSchema
 from data.database import get_db
@@ -12,7 +13,7 @@ def course_router() -> APIRouter:
     course_router = APIRouter()
 
     # Returns all courses for a user
-    @course_router.get("/courses")
+    @course_router.get("/user_courses")
     def get_courses_of_user(token: str = Depends(oauth2_scheme), db:Session = Depends(get_db)):
         id = get_user_id_from_token(token)
         courses = course_crud.db_get_user_courses(id, db)
@@ -116,7 +117,7 @@ def course_router() -> APIRouter:
         token: str = Depends(oauth2_scheme),
         db: Session = Depends(get_db),
     ):
-        course = course_crud.db_get_course_by_name(course_input.name)
+        course = course_crud.db_get_course_by_name(course_input.name, db)
         if course:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -149,5 +150,15 @@ def course_router() -> APIRouter:
                     "statusText": "Internal Server Error",
                 }
             )
+
+
+    @course_router.get("/courses")
+    def get_all_courses( db: Session = Depends(get_db)):
+        courses=db_get_all_courses(db)
+        return {
+            "statuseCode":status.HTTP_200_OK,
+            "title":"successful",
+            "courseList":courses
+        }
 
     return course_router
