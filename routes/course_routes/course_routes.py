@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Response, status, HTTPException
 from sqlalchemy.orm import Session
-from data.crud.course_crud import db_get_all_courses
+from data.crud.course_crud import db_get_all_courses, db_get_course_link
 from data.crud import course_crud
 from data.schemas.course_schema import CourseSchema
 from data.database import get_db
@@ -38,7 +38,7 @@ def course_router() -> APIRouter:
     # Returns a course details by id
     @course_router.get("/courses/{course_id}")
     def get_course(course_id: int, db: Session = Depends(get_db)):
-        course = course_crud.db_get_course_by_id(course_id)
+        course = course_crud.db_get_course_by_id(course_id, db)
         if not course:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -160,5 +160,12 @@ def course_router() -> APIRouter:
             "title":"successful",
             "courseList":courses
         }
-
+    @course_router.get("/{course_link}")
+    def get_course_by_link(course_link:str,db:Session=Depends(get_db)):
+        course = db_get_course_link(course_link, db)
+        return {
+            "statuseCode":status.HTTP_200_OK,
+            "title":"successful",
+            "courseDetail":course
+        }
     return course_router

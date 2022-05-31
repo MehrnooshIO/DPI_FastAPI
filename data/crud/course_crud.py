@@ -96,3 +96,6 @@ def db_get_all_courses(db:Session):
     course=db.query(UserCourse).all()
     return course
     
+def db_get_course_link(course_link:str, db:Session):
+    course=db.query(UserCourse).filter(UserCourse.course_link == course_link).first()
+    return course
