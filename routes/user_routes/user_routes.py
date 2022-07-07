@@ -25,7 +25,7 @@ def auth_router() -> APIRouter:
             return {
                 "statusCode": status.HTTP_409_CONFLICT,
                 "title": "user already exists",
-                "errorMessage": "با این آدرس ایمیل حساب کاربری دیگری ایجاد شده است"
+                "errorMessage": "با این مشخصات حساب کاربری دیگری ایجاد شده است"
             }
         hashed_pass = encrypt_password(user_input.password)
         user_id = user_crud.db_create_user(user_input.email, hashed_pass, db)
@@ -40,7 +40,14 @@ def auth_router() -> APIRouter:
     def login(user_input: UserSchema, db: Session = Depends(get_db)):
         user = user_crud.db_get_user_by_email(user_input.email, db)
         if not user:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Wrong Credential")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "statusCode": status.HTTP_403_FORBIDDEN,
+                    "title": "forbidden",
+                    "statusText": "نام کاربری یا رمز عبور اشتباه است"
+                }
+            )
         hashed_pass = encrypt_password(user_input.password)
         if not check_password(user_input.password, user.password):
             raise HTTPException(

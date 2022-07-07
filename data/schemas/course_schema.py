@@ -3,6 +3,11 @@ from pydantic import BaseModel
 
 
 class CourseSchema(BaseModel):
-    name: str
-    fields: list[dict]
-    info: Optional[dict] = None
+    courseName: str
+    courseDetails: list[dict]
+    
+
+
+
+class CourseSchemaUpdate(BaseModel):
+        courseInfo: list[dict]

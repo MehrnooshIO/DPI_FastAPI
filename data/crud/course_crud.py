@@ -1,4 +1,10 @@
 from aifc import Error
+from datetime import datetime
+from email import iterators
+import itertools
+from operator import concat
+
+from pydantic import Json
 from data.models.models import UserCourse
 from data.database import engine
 from helper.link import create_link
@@ -6,7 +12,7 @@ from helper.link import create_link
 from sqlalchemy import JSON, create_engine
 from sqlalchemy.orm import Session
 
-from typing import Optional
+from typing import  Optional
 
 
 def db_create_user_course(
@@ -31,7 +37,7 @@ def db_create_user_course(
         user_id=user_id,
         course_name=course_name,
         course_filds=course_filds,
-        course_info=None,
+        course_info=[],
         course_link= create_link()
         )
         db.add(user_course)
@@ -70,18 +76,18 @@ def db_get_course_by_id(course_id: int, db: Session) -> Optional[UserCourse]:
     return course
 
 
-def db_update_course(course_id: int, course_info: dict, db: Session) -> Optional[Error]:
+def db_update_course(course_id: int, courseInfo: list[dict], db: Session) -> Optional[Error]:
     """This function updates the course details based on course id
 
     Args:
         course_id (int): The id of the course
-        course_info (dict): The course details which specified by the user in the form of a dictionary
+        courseinfo (dict): The course details which specified by the user in the form of a dictionary
         db (Session): The database session
     """
     try:
         course = db.query(UserCourse).filter(UserCourse.id == course_id).first()
-        course.course_info = course_info
-        db.add()
+        temp=course.course_info
+        course.course_info =list (itertools.chain([courseInfo]+temp))  
         db.commit()
         return
     except Exception as e:

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Response, status, HTTPException
 from sqlalchemy.orm import Session
 from data.crud.course_crud import db_get_all_courses, db_get_course_link
 from data.crud import course_crud
-from data.schemas.course_schema import CourseSchema
+from data.schemas.course_schema import CourseSchema, CourseSchemaUpdate
 from data.database import get_db
 
 from helper.encrypt import get_user_id_from_token, oauth2_scheme
@@ -24,7 +24,7 @@ def course_router() -> APIRouter:
                     "statusCode": status.HTTP_404_NOT_FOUND,
                     "title": "Not Found",
                     "statusText": "Not Found",
-                    "errorText": "No courses found for this user"
+                    "errorText": "دوره ای یافت نشد"
                 }
             )
         return {
@@ -37,8 +37,10 @@ def course_router() -> APIRouter:
 
     # Returns a course details by id
     @course_router.get("/courses/{course_id}")
-    def get_course(course_id: int, db: Session = Depends(get_db)):
+    def get_course(course_id: int, db: Session = Depends(get_db),token: str = Depends(oauth2_scheme)):
+        user_id = get_user_id_from_token(token)
         course = course_crud.db_get_course_by_id(course_id, db)
+
         if not course:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -46,9 +48,24 @@ def course_router() -> APIRouter:
                     "statusCode": status.HTTP_404_NOT_FOUND,
                     "title": "Not Found",
                     "statusText": "Not Found",
-                    "errorText": "No course found with this id"
+                    "errorText": "دوره ای با این مشخصات وجود ندارد"
                 }
             )
+
+
+        if course.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "statusCode": status.HTTP_403_FORBIDDEN,
+                    "title": "Forbidden",
+                    "statusText": "Forbidden",
+                    "errorText": "شمااجازه مشاهده این دوره راندارید"
+                }
+            )
+
+        
+        
         return {
             "statusCode": status.HTTP_200_OK,
             "title": "Success",
@@ -60,13 +77,13 @@ def course_router() -> APIRouter:
     @course_router.put("/courses/{course_id}")
     def edit_course(
         course_id: int,
-        course_input: CourseSchema,
+        course_input: CourseSchemaUpdate,
         response: Response,
         db: Session = Depends(get_db),
         token: str = Depends(oauth2_scheme),
     ):
         user_id = get_user_id_from_token(token)
-        course = course_crud.db_get_course_by_id(course_id)
+        course = course_crud.db_get_course_by_id(course_id, db)
         if not course:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -74,7 +91,7 @@ def course_router() -> APIRouter:
                     "statusCode": status.HTTP_404_NOT_FOUND,
                     "title": "Not Found",
                     "statusText": "Not Found",
-                    "errorText": "No course found with this id"
+                    "errorText": "دوره ای پیدا نشد"
                 }
             )
         
@@ -85,11 +102,11 @@ def course_router() -> APIRouter:
                     "statusCode": status.HTTP_403_FORBIDDEN,
                     "title": "Forbidden",
                     "statusText": "Forbidden",
-                    "errorText": "You are not allowed to edit this course"
+                    "errorText": "شما اجازه تغییر این دوره را ندارید"
                 }
             )
         else:
-            result = course_crud.db_update_course(course_id, course_input, db)
+            result = course_crud.db_update_course(course_id, course_input.courseInfo, db)
             if isinstance(result, Exception):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -117,7 +134,7 @@ def course_router() -> APIRouter:
         token: str = Depends(oauth2_scheme),
         db: Session = Depends(get_db),
     ):
-        course = course_crud.db_get_course_by_name(course_input.name, db)
+        course = course_crud.db_get_course_by_name(course_input.courseName, db)
         if course:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -131,8 +148,8 @@ def course_router() -> APIRouter:
             id = get_user_id_from_token(token)
             course_id = course_crud.db_create_user_course(
                 id,
-                course_input.name,
-                course_input.fields,
+                course_input.courseName,
+                course_input.courseDetails,
                 db
             )
             response.status_code = status.HTTP_201_CREATED
@@ -168,4 +185,33 @@ def course_router() -> APIRouter:
             "title":"successful",
             "courseDetail":course
         }
+
+    # @course_router.delete("/courses/{course_id}")
+    # def delete_course(course_id: int, db: Session = Depends(get_db),token: str = Depends(oauth2_scheme)):
+    #     user_id = get_user_id_from_token(token)
+    #     course = course_crud.db_get_course_by_id(course_id, db)
+    #     if not course:
+    #         raise HTTPException(
+    #             status_code=status.HTTP_404_NOT_FOUND,
+    #             detail={
+    #                 "statusCode": status.HTTP_404_NOT_FOUND,
+    #                 "title": "Not Found",
+    #                 "statusText": "Not Found",
+    #                 "errorText": "دوره ای پیدا نشد"
+    #             }
+    #         )
+        
+    #     if course.user_id != user_id:
+    #         raise HTTPException(
+    #             status_code=status.HTTP_403_FORBIDDEN,
+    #             detail={
+    #                 "statusCode": status.HTTP_403_FORBIDDEN,
+    #                 "title": "Forbidden",
+    #                 "statusText": "Forbidden",
+    #                 "errorText": "شما اجازه تغییر این دوره را ندارید"
+    #             }
+    #         )
+
+
+
     return course_router
