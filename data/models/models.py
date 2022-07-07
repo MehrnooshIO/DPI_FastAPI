@@ -1,10 +1,9 @@
 from datetime import datetime
-from sqlalchemy import create_engine
 from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship
+from data.database import Base
 
 
-Base = declarative_base()
 
 
 class User(Base):
@@ -25,5 +24,6 @@ class UserCourse(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     course_filds = Column(JSON, nullable=False)
     course_info = Column(JSON, nullable=True)
+    course_link=Column(String)
 
     user = relationship('User', back_populates='user_courses')
