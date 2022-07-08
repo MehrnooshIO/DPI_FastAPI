@@ -1,5 +1,4 @@
 from aifc import Error
-from datetime import datetime
 from email import iterators
 import itertools
 from operator import concat
@@ -7,12 +6,17 @@ from operator import concat
 from pydantic import Json
 from data.models.models import UserCourse
 from data.database import engine
+from data.schemas.course_schema import CourseSchema, CourseSchemaUpdate
 from helper.link import create_link
 
-from sqlalchemy import JSON, create_engine
+from sqlalchemy import JSON, create_engine, Column, MetaData, Table, insert, inspect, table
+from sqlalchemy import String, Integer, Float, BigInteger, DateTime
+
+from sqlalchemy.schema import DropTable, CreateTable
 from sqlalchemy.orm import Session
 
 from typing import  Optional
+import sqlite3
 
 
 def db_create_user_course(
@@ -94,8 +98,8 @@ def db_update_course(course_id: int, courseInfo: list[dict], db: Session) -> Opt
         return e
 
 
-def db_get_course_by_name(course_name: str, db: Session) -> Optional[UserCourse]:
-    course = db.query(UserCourse).filter(UserCourse.course_name == course_name).first()
+def db_get_course_by_name(table_name: str, db: Session) -> Optional[UserCourse]:
+    course = db.query(UserCourse).filter(UserCourse.table_name == table_name).first()
     return course 
 
 def db_get_all_courses(db:Session):
@@ -105,3 +109,65 @@ def db_get_all_courses(db:Session):
 def db_get_course_link(course_link:str, db:Session):
     course=db.query(UserCourse).filter(UserCourse.course_link == course_link).first()
     return course
+
+
+def db_create_course(id:str, course_input: CourseSchema, db:Session):
+    # Create a table for course defined by user
+    TABLE_NAME = str(id) + "_" + course_input.courseName
+    TABLE_SPEC = []
+    type_dict = {'string': String, 'integer': Integer}
+    for c in course_input.courseDetails:
+        temp = list(c.items())
+        n = temp[0][0]
+        t = temp[0][1]
+        TABLE_SPEC.append((n, type_dict[t]))
+
+
+    columns = [Column(n, t) for n, t in TABLE_SPEC]
+    columns.append(Column('id', Integer, primary_key=True))
+    table = Table(TABLE_NAME, MetaData(), *columns)
+
+    table_creation_sql = CreateTable(table)
+    db.execute(table_creation_sql)
+
+    # Register the created table in user_courses table
+    user_course = UserCourse(
+        user_id=id,
+        course_name=course_input.courseName,
+        table_name=TABLE_NAME,
+        course_details=course_input.courseDetails,
+        course_link= create_link()
+        )
+    db.add(user_course)
+    db.commit()
+    db.refresh(user_course)
+
+
+def db_get_course_details(id: int, db:Session):
+    course = db.query(UserCourse).filter(UserCourse.id == id).first()
+    return course.course_details
+
+def db_course_insert(course, course_input: CourseSchemaUpdate, db:Session):
+    col_name = []
+    col_value = []
+    for d in course_input.courseInfo:
+        col_name.append(d['fieldName'])
+        col_value.append(d['fieldValue'])
+
+    print(col_name)
+    print(col_value)
+
+    sql = """
+    INSERT INTO ? ({cols}) VALUES (?,?,?)
+    """.format(table=course.table_name, cols = col_name)
+
+    print(sql)
+    conn = sqlite3.connect("testDB.db")
+    cur = conn.cursor()
+    cur.execute(sql, [course.table_name]+col_value)
+    conn.commit()
+
+    # g_table = Table(course.table_name, MetaData())
+    # print(col_name)
+    # engine.execute(table(course.table_name, *col_name)).insert().values(col_value)
+    

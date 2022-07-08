@@ -21,9 +21,9 @@ class UserCourse(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     course_name = Column(String, nullable=False)
+    table_name = Column(String, nullable=False)
+    course_details = Column(JSON)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    course_filds = Column(JSON, nullable=False)
-    course_info = Column(JSON, nullable=True)
     course_link=Column(String)
 
     user = relationship('User', back_populates='user_courses')

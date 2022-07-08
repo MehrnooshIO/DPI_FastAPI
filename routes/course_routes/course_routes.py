@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, Response, status, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import inspect
 from data.crud.course_crud import db_get_all_courses, db_get_course_link
 from data.crud import course_crud
 from data.schemas.course_schema import CourseSchema, CourseSchemaUpdate
 from data.database import get_db
 
 from helper.encrypt import get_user_id_from_token, oauth2_scheme
-
 
 # Create a router for handling course information
 def course_router() -> APIRouter:
@@ -63,13 +63,12 @@ def course_router() -> APIRouter:
                     "errorText": "شمااجازه مشاهده این دوره راندارید"
                 }
             )
-
-        
         
         return {
             "statusCode": status.HTTP_200_OK,
             "title": "Success",
             "statusText": "OK",
+            "courseDetails": course_crud.db_get_course_details(course.id, db),
             "course": course
         }
 
@@ -106,35 +105,21 @@ def course_router() -> APIRouter:
                 }
             )
         else:
-            result = course_crud.db_update_course(course_id, course_input.courseInfo, db)
-            if isinstance(result, Exception):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail={
-                        "statusCode": status.HTTP_400_BAD_REQUEST,
-                        "title": "Bad Request",
-                        "statusText": "Bad Request",
-                        "errorText": "Error updating course"
-                    }
-                )
-            response.status_code = status.HTTP_201_CREATED
-            return {
-                "statusCode": status.HTTP_201_CREATED,
-                "title": "Success",
-                "statusText": "OK",
-            }
-
+            course_crud.db_course_insert(course, course_input, db)
 
     # FIXME: Handling wrong token
     # Create a new course for a user
     @course_router.post("/courses")
     def create_course(
-        course_input: CourseSchema,
-        response: Response,
-        token: str = Depends(oauth2_scheme),
-        db: Session = Depends(get_db),
-    ):
-        course = course_crud.db_get_course_by_name(course_input.courseName, db)
+                    course_input: CourseSchema,
+                    response: Response,
+                    token: str = Depends(oauth2_scheme),
+                    db: Session = Depends(get_db),
+        ):
+        # Cheks if this course already exists
+        id = get_user_id_from_token(token)
+        table_name = str(id) + "_" + course_input.courseName
+        course = course_crud.db_get_course_by_name(table_name, db)
         if course:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -145,11 +130,9 @@ def course_router() -> APIRouter:
                 }
             )
         try:
-            id = get_user_id_from_token(token)
-            course_id = course_crud.db_create_user_course(
+            course_id = course_crud.db_create_course(
                 id,
-                course_input.courseName,
-                course_input.courseDetails,
+                course_input,
                 db
             )
             response.status_code = status.HTTP_201_CREATED
@@ -177,6 +160,7 @@ def course_router() -> APIRouter:
             "title":"successful",
             "courseList":courses
         }
+    
     @course_router.get("/{course_link}")
     def get_course_by_link(course_link:str,db:Session=Depends(get_db)):
         course = db_get_course_link(course_link, db)
@@ -211,7 +195,5 @@ def course_router() -> APIRouter:
     #                 "errorText": "شما اجازه تغییر این دوره را ندارید"
     #             }
     #         )
-
-
 
     return course_router
