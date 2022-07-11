@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import inspect
 from data.crud.course_crud import db_get_all_courses, db_get_course_link
 from data.crud import course_crud
-from data.schemas.course_schema import CourseSchema, CourseSchemaUpdate
+from data.schemas.course_schema import CourseSchema, CourseSchemaUpdate, DeleteRecord
 from data.database import get_db
 
 from helper.encrypt import get_user_id_from_token, oauth2_scheme
@@ -68,8 +68,11 @@ def course_router() -> APIRouter:
             "statusCode": status.HTTP_200_OK,
             "title": "Success",
             "statusText": "OK",
-            "courseDetails": course_crud.db_get_course_details(course.id, db),
-            "course": course
+            "course": {
+                "id": course.id,
+                "created_at": course.created_at,
+                "courseInfo": course_crud.db_get_course_details(course.id, db)
+            }
         }
 
     # Edits a course by id
@@ -118,7 +121,7 @@ def course_router() -> APIRouter:
         ):
         # Cheks if this course already exists
         id = get_user_id_from_token(token)
-        table_name = str(id) + "_" + course_input.courseName
+        table_name = "user_" + str(id) + "_" + course_input.courseName
         course = course_crud.db_get_course_by_name(table_name, db)
         if course:
             raise HTTPException(
@@ -126,7 +129,7 @@ def course_router() -> APIRouter:
                 detail={
                     "statusCode": status.HTTP_409_CONFLICT,
                     "title": "Conflict",
-                    "statusText": "دوره دیگری با این نام وجود دارد",
+                    "errorText": "دوره دیگری با این نام وجود دارد",
                 }
             )
         try:
@@ -147,7 +150,7 @@ def course_router() -> APIRouter:
                 detail={
                     "statusCode": status.HTTP_500_INTERNAL_SERVER_ERROR,
                     "title": "Internal Server Error",
-                    "statusText": "Internal Server Error",
+                    "errorText": "خطای سیستمی رخ داده",
                 }
             )
 
@@ -164,36 +167,49 @@ def course_router() -> APIRouter:
     @course_router.get("/{course_link}")
     def get_course_by_link(course_link:str,db:Session=Depends(get_db)):
         course = db_get_course_link(course_link, db)
+        if not course:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "statusCode": status.HTTP_404_NOT_FOUND,
+                    "title": "Not Found",
+                    "statusText": "Not Found",
+                    "errorText": "دوره ای با ابن مشخصات پیدا نشد"
+                }
+            )
         return {
             "statuseCode":status.HTTP_200_OK,
             "title":"successful",
             "courseDetail":course
         }
 
-    # @course_router.delete("/courses/{course_id}")
-    # def delete_course(course_id: int, db: Session = Depends(get_db),token: str = Depends(oauth2_scheme)):
-    #     user_id = get_user_id_from_token(token)
-    #     course = course_crud.db_get_course_by_id(course_id, db)
-    #     if not course:
-    #         raise HTTPException(
-    #             status_code=status.HTTP_404_NOT_FOUND,
-    #             detail={
-    #                 "statusCode": status.HTTP_404_NOT_FOUND,
-    #                 "title": "Not Found",
-    #                 "statusText": "Not Found",
-    #                 "errorText": "دوره ای پیدا نشد"
-    #             }
-    #         )
+    @course_router.delete("/courses/{course_id}")
+    def delete_course(course_id: int, id: DeleteRecord, db: Session = Depends(get_db),token: str = Depends(oauth2_scheme)):
+        user_id = get_user_id_from_token(token)
+        course = course_crud.db_get_course_by_id(course_id, db)
+        if not course:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "statusCode": status.HTTP_404_NOT_FOUND,
+                    "title": "Not Found",
+                    "statusText": "Not Found",
+                    "errorText": "دوره ای پیدا نشد"
+                }
+            )
         
-    #     if course.user_id != user_id:
-    #         raise HTTPException(
-    #             status_code=status.HTTP_403_FORBIDDEN,
-    #             detail={
-    #                 "statusCode": status.HTTP_403_FORBIDDEN,
-    #                 "title": "Forbidden",
-    #                 "statusText": "Forbidden",
-    #                 "errorText": "شما اجازه تغییر این دوره را ندارید"
-    #             }
-    #         )
+        if course.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "statusCode": status.HTTP_403_FORBIDDEN,
+                    "title": "Forbidden",
+                    "statusText": "Forbidden",
+                    "errorText": "شما اجازه تغییر این دوره را ندارید"
+                }
+            )
+        
+        table_name = course.table_name
+        course_crud.db_delete_course_record(table_name, id.recordID)
 
     return course_router

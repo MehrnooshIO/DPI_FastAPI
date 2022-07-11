@@ -1,22 +1,20 @@
+import itertools
+import sqlite3
 from aifc import Error
 from email import iterators
-import itertools
 from operator import concat
+from typing import Optional
 
-from pydantic import Json
-from data.models.models import UserCourse
 from data.database import engine
+from data.models.models import UserCourse
 from data.schemas.course_schema import CourseSchema, CourseSchemaUpdate
 from helper.link import create_link
-
-from sqlalchemy import JSON, create_engine, Column, MetaData, Table, insert, inspect, table
-from sqlalchemy import String, Integer, Float, BigInteger, DateTime
-
-from sqlalchemy.schema import DropTable, CreateTable
+from pydantic import Json
+from sqlalchemy import (JSON, BigInteger, Column, DateTime, Float, Integer,
+                        MetaData, String, Table, create_engine, insert,
+                        inspect, null, table)
 from sqlalchemy.orm import Session
-
-from typing import  Optional
-import sqlite3
+from sqlalchemy.schema import CreateTable, DropTable
 
 
 def db_create_user_course(
@@ -112,14 +110,21 @@ def db_get_course_link(course_link:str, db:Session):
 
 
 def db_create_course(id:str, course_input: CourseSchema, db:Session):
-    # Create a table for course defined by user
-    TABLE_NAME = str(id) + "_" + course_input.courseName
+    """Dynamically create a table for course defined by user"""
+
+    # Create a uniqe table name
+    TABLE_NAME = "user_" + str(id) + "_" + (course_input.courseName)
+    TABLE_NAME = TABLE_NAME.replace(" ", "")
     TABLE_SPEC = []
-    type_dict = {'string': String, 'integer': Integer}
+    type_dict = {'string': String, 'number': Integer, 'file': String}
     for c in course_input.courseDetails:
-        temp = list(c.items())
-        n = temp[0][0]
-        t = temp[0][1]
+        # temp = list(c.items())
+        # n = temp[0][0]
+        # t = (temp[0][1]).lower()
+        n = c['fieldName']
+        t = c['fieldType']
+        print(n)
+        print(t)
         TABLE_SPEC.append((n, type_dict[t]))
 
 
@@ -145,29 +150,70 @@ def db_create_course(id:str, course_input: CourseSchema, db:Session):
 
 def db_get_course_details(id: int, db:Session):
     course = db.query(UserCourse).filter(UserCourse.id == id).first()
-    return course.course_details
+    table_name = course.table_name
+
+    stmt1 = f"SELECT * FROM {table_name}"
+    stmt2 = f"PRAGMA table_info({table_name})"
+    with sqlite3.connect("testDB.db", check_same_thread=False) as conn:
+        cur = conn.cursor()
+        cur.execute(stmt1)  
+        rows = cur.fetchall()
+        cur.execute(stmt2)
+        columnInfos = cur.fetchall()
+        columnNames = [item[1] for item in columnInfos]
+        columnsType = [item[2] for item in columnInfos]
+
+    if len(rows) == 0:
+        result = list(zip(columnNames, columnsType))
+        result_dict = []
+        for r in result:
+            temp = [{'fieldName': r[0]}, {'fieldType': r[1]}]
+            result_dict.append(temp)
+        
+    else:
+        result = []
+        result_dict = []
+        result_dict_row = []
+        rows = [*rows]
+        for row in rows:
+            temp = []
+            for i in range(len(row)):
+                mid = {'fieldName': columnNames[i], 'fieldType': columnsType[i], 'fieldValue': row[i]}
+                if mid['fieldType'] == 'VARCHAR':
+                    mid['fieldType'] = 'text'
+                if mid['fieldType'] == 'INTEGER':
+                    mid['fieldType'] = 'number'
+                if 'فایل' in mid['fieldName'] or 'file' in mid['fieldName']:
+                    mid['fieldType'] = 'file'
+
+                temp.append(mid)
+            result_dict.append(temp)
+        test = result_dict
+    return test
 
 def db_course_insert(course, course_input: CourseSchemaUpdate, db:Session):
     col_name = []
     col_value = []
     for d in course_input.courseInfo:
         col_name.append(d['fieldName'])
-        col_value.append(d['fieldValue'])
+        col_value.append(str(d['fieldValue']))
 
     print(col_name)
-    print(col_value)
+    col_name_literal = ",".join(col_name)
+    col_value_literal = ",".join(f"'{w}'" for w in col_value)
 
     sql = """
-    INSERT INTO ? ({cols}) VALUES (?,?,?)
-    """.format(table=course.table_name, cols = col_name)
+    INSERT INTO {table}({cols}) VALUES ({vals})
+    """.format(table=course.table_name, cols=col_name_literal, vals=col_value_literal)
 
     print(sql)
-    conn = sqlite3.connect("testDB.db")
-    cur = conn.cursor()
-    cur.execute(sql, [course.table_name]+col_value)
-    conn.commit()
+    with sqlite3.connect("testDB.db", check_same_thread=False) as conn:
+        cur = conn.cursor()
+        cur.executescript(sql)    
 
-    # g_table = Table(course.table_name, MetaData())
-    # print(col_name)
-    # engine.execute(table(course.table_name, *col_name)).insert().values(col_value)
-    
+
+def db_delete_course_record(table_name, record_id):
+    stmt = f"DELETE FROM {table_name} WHERE id={record_id}"
+    with sqlite3.connect("testDB.db", check_same_thread=False) as conn:
+        cur = conn.cursor()
+        cur.executescript(stmt)

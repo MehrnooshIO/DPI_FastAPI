@@ -1,15 +1,17 @@
-courseDetails = [
-    {'field1': 'value1'},
-    {'field2': 'value2'}
-]
+import sqlite3
 
-new = []
+table_name = "user_1_sql"
+stmt1 = f"SELECT * FROM {table_name}"
+stmt2 = f"PRAGMA table_info({table_name})"
 
-for c in courseDetails:
-    temp = list(c.items())
-    k = temp[0][0]
-    v = temp[0][1]
-    new.append((k, v))
+with sqlite3.connect("testDB.db", check_same_thread=False) as conn:
+    cur = conn.cursor()
+    cur.execute(stmt1)  
+    rows = cur.fetchall()
+    cur.execute(stmt2)
+    columnInfos = cur.fetchall()
+    columnNames = [item[1] for item in columnInfos]
+    columnsType = [item[2] for item in columnInfos]
 
-
-print(new)
+for row in rows:
+    print(list(zip(columnNames, columnsType, row)))
