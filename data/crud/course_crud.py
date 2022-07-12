@@ -1,8 +1,6 @@
 import itertools
 import sqlite3
 from aifc import Error
-from email import iterators
-from operator import concat
 from typing import Optional
 
 from data.database import engine
@@ -121,7 +119,7 @@ def db_create_course(id:str, course_input: CourseSchema, db:Session):
         # temp = list(c.items())
         # n = temp[0][0]
         # t = (temp[0][1]).lower()
-        n = c['fieldName']
+        n = (c['fieldName']).replace(" ", "_")
         t = c['fieldType']
         if t == 'file':
             n = 'fileType_' + n
@@ -162,41 +160,35 @@ def db_get_course_details(id: int, db:Session):
         rows = cur.fetchall()
         cur.execute(stmt2)
         columnInfos = cur.fetchall()
-        columnNames = [item[1] for item in columnInfos]
+        columnNames = [(item[1]).replace("_", " ") for item in columnInfos]
         columnsType = [item[2] for item in columnInfos]
 
     if len(rows) == 0:
         result_dict = []
         field_dict = []
         for i in range(len(columnNames)):
+            if columnNames[i] == 'id':
+                continue
             mid = {'fieldName': columnNames[i], 'fieldType': columnsType[i]}
             if mid['fieldType'] == 'VARCHAR':
                 mid['fieldType'] = 'text'
             if mid['fieldType'] == 'INTEGER':
                 mid['fieldType'] = 'number'
-            if 'fileType_' in mid['fieldName'] or 'file' in mid['fieldName']:
+            if 'fileType' in mid['fieldName']:
+                print("Fuck")
                 mid['fieldType'] = 'file'
-                mid['fieldName'] = mid['fieldName'] . replace('fileType_', '')
+                mid['fieldName'] = (mid['fieldName']).replace('fileType ', '')
             field_dict.append(mid)
+        
     else:
-        result = []
         result_dict = []
-        result_dict_row = []
         field_dict = []
-        for i in range(len(columnNames)):
-            mid = {'fieldName': columnNames[i], 'fieldType': columnsType[i]}
-            if mid['fieldType'] == 'VARCHAR':
-                mid['fieldType'] = 'text'
-            if mid['fieldType'] == 'INTEGER':
-                mid['fieldType'] = 'number'
-            if 'fileType_' in mid['fieldName'] or 'file' in mid['fieldName']:
-                mid['fieldType'] = 'file'
-                mid['fieldName'] = mid['fieldName'] . replace('fileType_', '')
-            field_dict.append(mid)
         rows = [*rows]
         for row in rows:
             temp = []
             for i in range(len(row)):
+                if columnNames[i] == 'id':
+                    continue
                 mid = {'fieldName': columnNames[i], 'fieldType': columnsType[i], 'fieldValue': row[i]}
                 if mid['fieldType'] == 'VARCHAR':
                     mid['fieldType'] = 'text'
@@ -204,21 +196,43 @@ def db_get_course_details(id: int, db:Session):
                     mid['fieldType'] = 'number'
                 if 'فایل' in mid['fieldName'] or 'file' in mid['fieldName']:
                     mid['fieldType'] = 'file'
-
+                    mid['fieldName'] = (mid['fieldName']).replace('fileType ', '')
                 temp.append(mid)
             result_dict.append(temp)
+
+        for i in range(len(columnNames)):
+            if columnNames[i] == 'id':
+                continue
+            mid = {'fieldName': columnNames[i], 'fieldType': columnsType[i]}
+            if mid['fieldType'] == 'VARCHAR':
+                mid['fieldType'] = 'text'
+            if mid['fieldType'] == 'INTEGER':
+                mid['fieldType'] = 'number'
+            if 'fileType' in mid['fieldName']:
+                print("Fuck")
+                mid['fieldType'] = 'file'
+                mid['fieldName'] = (mid['fieldName']).replace('fileType ', '')
+            field_dict.append(mid)
     return result_dict, field_dict
 
 def db_course_insert(course, course_input: CourseSchemaUpdate, db:Session):
     col_name = []
     col_value = []
     for d in course_input.courseInfo:
-        col_name.append(d['fieldName'])
+        # if d['fieldType'] == 'file':
+        #     col_name.append("fileType_"+ str(d['fieldName']))
+        #     col_value.append(str(d['fieldValue']))
+        # else:
+        col_name.append(str(d['fieldName']).replace(" ", "_"))
         col_value.append(str(d['fieldValue']))
 
     print(col_name)
     col_name_literal = ",".join(col_name)
     col_value_literal = ",".join(f"'{w}'" for w in col_value)
+
+    print("#############")
+    print(col_name_literal)
+    print(col_value_literal)
 
     sql = """
     INSERT INTO {table}({cols}) VALUES ({vals})

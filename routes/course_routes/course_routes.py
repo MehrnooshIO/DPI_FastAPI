@@ -124,7 +124,7 @@ def course_router() -> APIRouter:
         ):
         # Cheks if this course already exists
         id = get_user_id_from_token(token)
-        table_name = "user_" + str(id) + "_" + course_input.courseName
+        table_name = "user_" + str(id) + "_" + (course_input.courseName).replace(" ", "")
         course = course_crud.db_get_course_by_name(table_name, db)
         if course:
             raise HTTPException(
@@ -148,6 +148,7 @@ def course_router() -> APIRouter:
                 "statusText": "دوره جدید ایجاد شد",
             }
         except Exception as e:
+            print(e)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail={
