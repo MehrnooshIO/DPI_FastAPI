@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Response, status, HTTPException
+from fastapi import APIRouter, Depends, Response, UploadFile, status, HTTPException, File
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect
 from data.crud.course_crud import db_get_all_courses, db_get_course_link
@@ -63,15 +64,18 @@ def course_router() -> APIRouter:
                     "errorText": "شمااجازه مشاهده این دوره راندارید"
                 }
             )
-        
+        info , field = course_crud.db_get_course_details(course.id, db)
         return {
             "statusCode": status.HTTP_200_OK,
             "title": "Success",
             "statusText": "OK",
             "course": {
+                "courseName": course.course_name,
                 "id": course.id,
                 "created_at": course.created_at,
-                "courseInfo": course_crud.db_get_course_details(course.id, db)
+                "course_link": "https://fastapi-dpi.chabk.ir/" + course.course_link,
+                "courseField": field,
+                "courseInfo": info
             }
         }
 
@@ -110,7 +114,7 @@ def course_router() -> APIRouter:
         else:
             course_crud.db_course_insert(course, course_input, db)
 
-    # FIXME: Handling wrong token
+
     # Create a new course for a user
     @course_router.post("/courses")
     def create_course(
@@ -177,11 +181,7 @@ def course_router() -> APIRouter:
                     "errorText": "دوره ای با ابن مشخصات پیدا نشد"
                 }
             )
-        return {
-            "statuseCode":status.HTTP_200_OK,
-            "title":"successful",
-            "courseDetail":course
-        }
+        return RedirectResponse(f"https://fastapi-dpi.chbk.ir/courses/{course.course_id}")
 
     @course_router.delete("/courses/{course_id}")
     def delete_course(course_id: int, id: DeleteRecord, db: Session = Depends(get_db),token: str = Depends(oauth2_scheme)):
@@ -212,4 +212,12 @@ def course_router() -> APIRouter:
         table_name = course.table_name
         course_crud.db_delete_course_record(table_name, id.recordID)
 
+    # @course_router.post("/files")
+    # def create_file(file: bytes = File()):
+    #     pass
+
+    # @course_router.post("/uploadfile")
+    # def create_apload_file(file: UploadFile):
+    #     pass
+    
     return course_router

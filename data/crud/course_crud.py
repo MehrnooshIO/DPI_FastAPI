@@ -123,6 +123,8 @@ def db_create_course(id:str, course_input: CourseSchema, db:Session):
         # t = (temp[0][1]).lower()
         n = c['fieldName']
         t = c['fieldType']
+        if t == 'file':
+            n = 'fileType_' + n
         print(n)
         print(t)
         TABLE_SPEC.append((n, type_dict[t]))
@@ -164,16 +166,33 @@ def db_get_course_details(id: int, db:Session):
         columnsType = [item[2] for item in columnInfos]
 
     if len(rows) == 0:
-        result = list(zip(columnNames, columnsType))
         result_dict = []
-        for r in result:
-            temp = [{'fieldName': r[0]}, {'fieldType': r[1]}]
-            result_dict.append(temp)
-        
+        field_dict = []
+        for i in range(len(columnNames)):
+            mid = {'fieldName': columnNames[i], 'fieldType': columnsType[i]}
+            if mid['fieldType'] == 'VARCHAR':
+                mid['fieldType'] = 'text'
+            if mid['fieldType'] == 'INTEGER':
+                mid['fieldType'] = 'number'
+            if 'fileType_' in mid['fieldName'] or 'file' in mid['fieldName']:
+                mid['fieldType'] = 'file'
+                mid['fieldName'] = mid['fieldName'] . replace('fileType_', '')
+            field_dict.append(mid)
     else:
         result = []
         result_dict = []
         result_dict_row = []
+        field_dict = []
+        for i in range(len(columnNames)):
+            mid = {'fieldName': columnNames[i], 'fieldType': columnsType[i]}
+            if mid['fieldType'] == 'VARCHAR':
+                mid['fieldType'] = 'text'
+            if mid['fieldType'] == 'INTEGER':
+                mid['fieldType'] = 'number'
+            if 'fileType_' in mid['fieldName'] or 'file' in mid['fieldName']:
+                mid['fieldType'] = 'file'
+                mid['fieldName'] = mid['fieldName'] . replace('fileType_', '')
+            field_dict.append(mid)
         rows = [*rows]
         for row in rows:
             temp = []
@@ -188,8 +207,7 @@ def db_get_course_details(id: int, db:Session):
 
                 temp.append(mid)
             result_dict.append(temp)
-        test = result_dict
-    return test
+    return result_dict, field_dict
 
 def db_course_insert(course, course_input: CourseSchemaUpdate, db:Session):
     col_name = []
