@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, Response, UploadFile, status, HTTPException, File
-from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect
 from data.crud.course_crud import db_get_all_courses, db_get_course_link
@@ -181,7 +180,19 @@ def course_router() -> APIRouter:
                     "errorText": "دوره ای با ابن مشخصات پیدا نشد"
                 }
             )
-        return RedirectResponse(f"https://fastapi-dpi.chbk.ir/courses/{course.course_id}")
+        info , field = course_crud.db_get_course_details(course.id, db)
+        return {
+            "statusCode": status.HTTP_200_OK,
+            "title": "Success",
+            "statusText": "OK",
+            "course": {
+                "courseName": course.course_name,
+                "id": course.id,
+                "created_at": course.created_at,
+                "courseField": field,
+                "courseInfo": info
+            }
+        }
 
     @course_router.delete("/courses/{course_id}")
     def delete_course(course_id: int, id: DeleteRecord, db: Session = Depends(get_db),token: str = Depends(oauth2_scheme)):
