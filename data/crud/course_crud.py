@@ -170,10 +170,10 @@ def db_course_insert(course, course_input: CourseSchemaUpdate):
     # Convert request body to database processable entities
     col_name_literal, col_value_literal =  create_update_info(course_input.courseInfo)
     
-    if course_input.index:
+    if course_input.recordID:
         sql = """
         UPDATE {table} SET ({cols}) = ({vals}) WHERE ID = {id}
-        """.format(table=course.table_name, cols=col_name_literal, vals=col_value_literal, id=course_input.index)
+        """.format(table=course.table_name, cols=col_name_literal, vals=col_value_literal, id=course_input.recordID)
     else:
         sql = """
         INSERT INTO {table}({cols}) VALUES ({vals})
