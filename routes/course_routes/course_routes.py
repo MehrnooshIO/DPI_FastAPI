@@ -27,11 +27,20 @@ def course_router() -> APIRouter:
                     "errorText": "دوره ای یافت نشد"
                 }
             )
+        data = []
+        for course in courses:
+            temp = [
+                {"courseID": course.id},
+                {"courseName": course.course_name},
+                {"createdAt": course.created_at},
+                ]
+            data.append(temp)
+
         return {
             "statusCode": status.HTTP_200_OK,
             "title": "Success",
             "statusText": "OK",
-            "courses": courses
+            "courses": data
         }
         
 
