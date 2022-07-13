@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, Response, status, HTTPException
+from fastapi import APIRouter, Depends, Response, UploadFile, status, HTTPException, File
 from sqlalchemy.orm import Session
+from sqlalchemy import inspect
 from data.crud.course_crud import db_get_all_courses, db_get_course_link
 from data.crud import course_crud
-from data.schemas.course_schema import CourseSchema, CourseSchemaUpdate
+from data.schemas.course_schema import CourseSchema, CourseSchemaUpdate, DeleteRecord
 from data.database import get_db
 
 from helper.encrypt import get_user_id_from_token, oauth2_scheme
-
+from helper.db_scripts import create_db_name
 
 # Create a router for handling course information
 def course_router() -> APIRouter:
@@ -27,11 +28,20 @@ def course_router() -> APIRouter:
                     "errorText": "دوره ای یافت نشد"
                 }
             )
+        data = []
+        for course in courses:
+            temp = [
+                {"courseID": course.id},
+                {"courseName": course.course_name},
+                {"createdAt": course.created_at},
+                ]
+            data.append(temp)
+
         return {
             "statusCode": status.HTTP_200_OK,
             "title": "Success",
             "statusText": "OK",
-            "courses": courses
+            "courses": data
         }
         
 
@@ -63,14 +73,19 @@ def course_router() -> APIRouter:
                     "errorText": "شمااجازه مشاهده این دوره راندارید"
                 }
             )
-
-        
-        
+        info , field = course_crud.db_get_course_details(course.id, db)
         return {
             "statusCode": status.HTTP_200_OK,
             "title": "Success",
             "statusText": "OK",
-            "course": course
+            "course": {
+                "courseName": course.course_name,
+                "id": course.id,
+                "created_at": course.created_at,
+                "course_link": "https://fastapi-dpi.chabk.ir/" + course.course_link,
+                "courseField": field,
+                "courseInfo": info
+            }
         }
 
     # Edits a course by id
@@ -78,7 +93,6 @@ def course_router() -> APIRouter:
     def edit_course(
         course_id: int,
         course_input: CourseSchemaUpdate,
-        response: Response,
         db: Session = Depends(get_db),
         token: str = Depends(oauth2_scheme),
     ):
@@ -106,50 +120,44 @@ def course_router() -> APIRouter:
                 }
             )
         else:
-            result = course_crud.db_update_course(course_id, course_input.courseInfo, db)
-            if isinstance(result, Exception):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail={
-                        "statusCode": status.HTTP_400_BAD_REQUEST,
-                        "title": "Bad Request",
-                        "statusText": "Bad Request",
-                        "errorText": "Error updating course"
-                    }
-                )
-            response.status_code = status.HTTP_201_CREATED
+            course_crud.db_course_insert(course, course_input)
             return {
-                "statusCode": status.HTTP_201_CREATED,
-                "title": "Success",
-                "statusText": "OK",
+            "statusCode": status.HTTP_200_OK,
+            "title": "Success",
+            "statusText": "دوره با موفقیت به روز رسانی شد",
             }
+        
 
 
-    # FIXME: Handling wrong token
     # Create a new course for a user
     @course_router.post("/courses")
     def create_course(
-        course_input: CourseSchema,
-        response: Response,
-        token: str = Depends(oauth2_scheme),
-        db: Session = Depends(get_db),
-    ):
-        course = course_crud.db_get_course_by_name(course_input.courseName, db)
+                    course_input: CourseSchema,
+                    response: Response,
+                    token: str = Depends(oauth2_scheme),
+                    db: Session = Depends(get_db),
+        ):
+        
+        id = get_user_id_from_token(token)
+        table_name = create_db_name(id, course_input.courseName)
+
+        # Cheks if this course already exists
+        course = course_crud.db_get_course_by_name(table_name, db)
         if course:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={
                     "statusCode": status.HTTP_409_CONFLICT,
                     "title": "Conflict",
-                    "statusText": "دوره دیگری با این نام وجود دارد",
+                    "errorText": "دوره دیگری با این نام وجود دارد",
                 }
             )
+            
+        # Create table
         try:
-            id = get_user_id_from_token(token)
-            course_id = course_crud.db_create_user_course(
+            course_id = course_crud.db_create_course(
                 id,
-                course_input.courseName,
-                course_input.courseDetails,
+                course_input,
                 db
             )
             response.status_code = status.HTTP_201_CREATED
@@ -159,59 +167,76 @@ def course_router() -> APIRouter:
                 "statusText": "دوره جدید ایجاد شد",
             }
         except Exception as e:
+            print(e)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail={
                     "statusCode": status.HTTP_500_INTERNAL_SERVER_ERROR,
                     "title": "Internal Server Error",
-                    "statusText": "Internal Server Error",
+                    "errorText": "خطای سیستمی رخ داده",
                 }
             )
 
-
-    @course_router.get("/courses")
-    def get_all_courses( db: Session = Depends(get_db)):
-        courses=db_get_all_courses(db)
-        return {
-            "statuseCode":status.HTTP_200_OK,
-            "title":"successful",
-            "courseList":courses
-        }
+    
     @course_router.get("/{course_link}")
     def get_course_by_link(course_link:str,db:Session=Depends(get_db)):
         course = db_get_course_link(course_link, db)
+        if not course:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "statusCode": status.HTTP_404_NOT_FOUND,
+                    "title": "Not Found",
+                    "statusText": "Not Found",
+                    "errorText": "دوره ای با ابن مشخصات پیدا نشد"
+                }
+            )
+        info , field = course_crud.db_get_course_details(course.id, db)
         return {
-            "statuseCode":status.HTTP_200_OK,
-            "title":"successful",
-            "courseDetail":course
+            "statusCode": status.HTTP_200_OK,
+            "title": "Success",
+            "statusText": "OK",
+            "course": {
+                "courseName": course.course_name,
+                "id": course.id,
+                "created_at": course.created_at,
+                "courseField": field,
+                "courseInfo": info
+            }
         }
 
-    # @course_router.delete("/courses/{course_id}")
-    # def delete_course(course_id: int, db: Session = Depends(get_db),token: str = Depends(oauth2_scheme)):
-    #     user_id = get_user_id_from_token(token)
-    #     course = course_crud.db_get_course_by_id(course_id, db)
-    #     if not course:
-    #         raise HTTPException(
-    #             status_code=status.HTTP_404_NOT_FOUND,
-    #             detail={
-    #                 "statusCode": status.HTTP_404_NOT_FOUND,
-    #                 "title": "Not Found",
-    #                 "statusText": "Not Found",
-    #                 "errorText": "دوره ای پیدا نشد"
-    #             }
-    #         )
+    @course_router.delete("/courses/{course_id}")
+    def delete_course(course_id: int, id: DeleteRecord, db: Session = Depends(get_db),token: str = Depends(oauth2_scheme)):
+        user_id = get_user_id_from_token(token)
+        course = course_crud.db_get_course_by_id(course_id, db)
+        if not course:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "statusCode": status.HTTP_404_NOT_FOUND,
+                    "title": "Not Found",
+                    "statusText": "Not Found",
+                    "errorText": "دوره ای با این مشخصات وجود ندارد"
+                }
+            )
         
-    #     if course.user_id != user_id:
-    #         raise HTTPException(
-    #             status_code=status.HTTP_403_FORBIDDEN,
-    #             detail={
-    #                 "statusCode": status.HTTP_403_FORBIDDEN,
-    #                 "title": "Forbidden",
-    #                 "statusText": "Forbidden",
-    #                 "errorText": "شما اجازه تغییر این دوره را ندارید"
-    #             }
-    #         )
-
-
+        if course.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "statusCode": status.HTTP_403_FORBIDDEN,
+                    "title": "Forbidden",
+                    "statusText": "Forbidden",
+                    "errorText": "شما اجازه تغییر این دوره را ندارید"
+                }
+            )
+        
+        table_name = course.table_name
+        course_crud.db_delete_course_record(table_name, id.recordID)
+        return {
+            "statusCode": status.HTTP_200_OK,
+            "title": "Success",
+            "statusText": "ردیف با موفقیت حذف شد",
+        }
 
     return course_router
