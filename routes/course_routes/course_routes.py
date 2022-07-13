@@ -112,6 +112,12 @@ def course_router() -> APIRouter:
             )
         else:
             course_crud.db_course_insert(course, course_input, db)
+            return {
+            "statusCode": status.HTTP_200_OK,
+            "title": "Success",
+            "statusText": "دوره با موفقیت به روز رسانی شد",
+            }
+        
 
 
     # Create a new course for a user
@@ -206,7 +212,7 @@ def course_router() -> APIRouter:
                     "statusCode": status.HTTP_404_NOT_FOUND,
                     "title": "Not Found",
                     "statusText": "Not Found",
-                    "errorText": "دوره ای پیدا نشد"
+                    "errorText": "دوره ای با این مشخصات وجود ندارد"
                 }
             )
         
@@ -223,13 +229,10 @@ def course_router() -> APIRouter:
         
         table_name = course.table_name
         course_crud.db_delete_course_record(table_name, id.recordID)
+        return {
+            "statusCode": status.HTTP_200_OK,
+            "title": "Success",
+            "statusText": "ردیف با موفقیت حذف شد",
+        }
 
-    # @course_router.post("/files")
-    # def create_file(file: bytes = File()):
-    #     pass
-
-    # @course_router.post("/uploadfile")
-    # def create_apload_file(file: UploadFile):
-    #     pass
-    
     return course_router
