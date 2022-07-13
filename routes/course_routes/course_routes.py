@@ -7,6 +7,7 @@ from data.schemas.course_schema import CourseSchema, CourseSchemaUpdate, DeleteR
 from data.database import get_db
 
 from helper.encrypt import get_user_id_from_token, oauth2_scheme
+from helper.db_scripts import create_db_name
 
 # Create a router for handling course information
 def course_router() -> APIRouter:
@@ -92,7 +93,6 @@ def course_router() -> APIRouter:
     def edit_course(
         course_id: int,
         course_input: CourseSchemaUpdate,
-        response: Response,
         db: Session = Depends(get_db),
         token: str = Depends(oauth2_scheme),
     ):
@@ -120,7 +120,7 @@ def course_router() -> APIRouter:
                 }
             )
         else:
-            course_crud.db_course_insert(course, course_input, db)
+            course_crud.db_course_insert(course, course_input)
             return {
             "statusCode": status.HTTP_200_OK,
             "title": "Success",
@@ -137,9 +137,11 @@ def course_router() -> APIRouter:
                     token: str = Depends(oauth2_scheme),
                     db: Session = Depends(get_db),
         ):
-        # Cheks if this course already exists
+        
         id = get_user_id_from_token(token)
-        table_name = "user_" + str(id) + "_" + (course_input.courseName).replace(" ", "")
+        table_name = create_db_name(id, course_input.courseName)
+
+        # Cheks if this course already exists
         course = course_crud.db_get_course_by_name(table_name, db)
         if course:
             raise HTTPException(
@@ -150,6 +152,8 @@ def course_router() -> APIRouter:
                     "errorText": "دوره دیگری با این نام وجود دارد",
                 }
             )
+            
+        # Create table
         try:
             course_id = course_crud.db_create_course(
                 id,
@@ -173,15 +177,6 @@ def course_router() -> APIRouter:
                 }
             )
 
-
-    @course_router.get("/courses")
-    def get_all_courses( db: Session = Depends(get_db)):
-        courses=db_get_all_courses(db)
-        return {
-            "statuseCode":status.HTTP_200_OK,
-            "title":"successful",
-            "courseList":courses
-        }
     
     @course_router.get("/{course_link}")
     def get_course_by_link(course_link:str,db:Session=Depends(get_db)):
