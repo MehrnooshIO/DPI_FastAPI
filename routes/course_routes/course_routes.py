@@ -122,8 +122,6 @@ def course_router() -> APIRouter:
             "title": "Success",
             "statusText": "دوره با موفقیت به روز رسانی شد",
             }
-        
-
 
     # Create a new course for a user
     @course_router.post("/courses")
@@ -204,6 +202,7 @@ def course_router() -> APIRouter:
             }
         }
 
+    # Delete a row from a course
     @course_router.delete("/courses/{course_id}")
     def delete_course(course_id: int, id: DeleteRecord, db: Session = Depends(get_db),token: str = Depends(oauth2_scheme)):
         user_id = get_user_id_from_token(token)
@@ -231,7 +230,7 @@ def course_router() -> APIRouter:
             )
         
         table_name = course.table_name
-        course_crud.db_delete_course_record(table_name, id.recordID)
+        course_crud.db_delete_course_record(table_name, id.recordID, db, course)
         return {
             "statusCode": status.HTTP_200_OK,
             "title": "Success",
