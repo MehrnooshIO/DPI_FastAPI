@@ -8,7 +8,7 @@ def create_course_Info(rows: list, columnInfos: list):
         result_dict = []
         field_dict = []
         for i in range(len(columnNames)):
-            if columnNames[i] == 'id':
+            if columnNames[i] == 'id' or columnNames[i] == 'recordID':
                 continue
             mid = {'fieldName': columnNames[i], 'fieldType': columnsType[i]}
             if mid['fieldType'] == 'VARCHAR':
@@ -27,7 +27,7 @@ def create_course_Info(rows: list, columnInfos: list):
         for row in rows:
             temp = []
             for i in range(len(row)):
-                if columnNames[i] == 'id':
+                if columnNames[i] == 'id' or columnNames[i] == 'recordID':
                     continue
                 mid = {'fieldName': columnNames[i], 'fieldType': columnsType[i], 'fieldValue': row[i]}
                 if mid['fieldType'] == 'VARCHAR':
@@ -41,7 +41,7 @@ def create_course_Info(rows: list, columnInfos: list):
             result_dict.append(temp)
 
         for i in range(len(columnNames)):
-            if columnNames[i] == 'id':
+            if columnNames[i] == 'id' or columnNames[i] == 'recordID':
                 continue
             mid = {'fieldName': columnNames[i], 'fieldType': columnsType[i]}
             if mid['fieldType'] == 'VARCHAR':

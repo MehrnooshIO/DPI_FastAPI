@@ -27,3 +27,10 @@ class UserCourse(Base):
     course_link=Column(String)
 
     user = relationship('User', back_populates='user_courses')
+
+class Utility(Base):
+    __tablename__ = 'utility'
+    id = Column(Integer, primary_key=True)
+    course_id = Column(Integer)
+    max_record = Column(Integer)
+

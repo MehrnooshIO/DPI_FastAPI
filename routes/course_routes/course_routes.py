@@ -88,6 +88,7 @@ def course_router() -> APIRouter:
         db: Session = Depends(get_db),
         token: str = Depends(oauth2_scheme),
     ):
+        # Checks if the course exists
         user_id = get_user_id_from_token(token)
         course = course_crud.db_get_course_by_id(course_id, db)
         if not course:
@@ -101,6 +102,7 @@ def course_router() -> APIRouter:
                 }
             )
         
+        # Checks if user is the owner of the course
         if course.user_id != user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -111,8 +113,10 @@ def course_router() -> APIRouter:
                     "errorText": "شما اجازه تغییر این دوره را ندارید"
                 }
             )
+        
+        # Add data to course
         else:
-            course_crud.db_course_insert(course, course_input)
+            course_crud.db_course_insert(course, course_input, db)
             return {
             "statusCode": status.HTTP_200_OK,
             "title": "Success",
@@ -147,11 +151,14 @@ def course_router() -> APIRouter:
             
         # Create table
         try:
+            # Create new course
             course_id = course_crud.db_create_course(
                 id,
                 course_input,
                 db
             )
+            # Add course to utility table
+            course_crud.db_add_course_to_utility(course_id, db)
             response.status_code = status.HTTP_201_CREATED
             return {
                 "statusCode": status.HTTP_201_CREATED,
