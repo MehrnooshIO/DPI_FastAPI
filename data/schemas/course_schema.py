@@ -10,8 +10,8 @@ class CourseSchema(BaseModel):
 
 
 class CourseSchemaUpdate(BaseModel):
-        courseInfo: list[dict]
-        index: Optional[int]
+    courseInfo: list[dict]
+    recordID: Optional[int]
 
 
 class DeleteRecord(BaseModel):
