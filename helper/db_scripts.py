@@ -1,3 +1,6 @@
+import sqlite3
+
+
 def create_db_name(id: int, name: str) -> str:
     return "USER_" + str(id) + name.replace(" ", "")
 
@@ -8,7 +11,7 @@ def create_course_Info(rows: list, columnInfos: list):
         result_dict = []
         field_dict = []
         for i in range(len(columnNames)):
-            if columnNames[i] == 'id':
+            if columnNames[i] == 'id' or columnNames[i] == 'recordID':
                 continue
             mid = {'fieldName': columnNames[i], 'fieldType': columnsType[i]}
             if mid['fieldType'] == 'VARCHAR':
@@ -27,7 +30,7 @@ def create_course_Info(rows: list, columnInfos: list):
         for row in rows:
             temp = []
             for i in range(len(row)):
-                if columnNames[i] == 'id':
+                if columnNames[i] == 'id' or columnNames[i] == 'recordID':
                     continue
                 mid = {'fieldName': columnNames[i], 'fieldType': columnsType[i], 'fieldValue': row[i]}
                 if mid['fieldType'] == 'VARCHAR':
@@ -41,7 +44,7 @@ def create_course_Info(rows: list, columnInfos: list):
             result_dict.append(temp)
 
         for i in range(len(columnNames)):
-            if columnNames[i] == 'id':
+            if columnNames[i] == 'id' or columnNames[i] == 'recordID':
                 continue
             mid = {'fieldName': columnNames[i], 'fieldType': columnsType[i]}
             if mid['fieldType'] == 'VARCHAR':
@@ -64,3 +67,13 @@ def create_update_info(courseInfo: list[dict]):
     col_name_literal = ",".join(col_name)
     col_value_literal = ",".join(f"'{w}'" for w in col_value)
     return col_name_literal, col_value_literal
+
+def reindex(table_name, r: int) -> None:
+    sql = """
+    UPDATE {table} 
+    SET recordID = recordID -1 
+    WHERE recordID > {r}
+    """.format(table=table_name, r=r)
+    with sqlite3.connect("testDB.db", check_same_thread=False) as conn:
+        cur = conn.cursor()
+        cur.executescript(sql)

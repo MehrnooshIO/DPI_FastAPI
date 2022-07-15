@@ -4,7 +4,7 @@ from aifc import Error
 from typing import Optional
 
 from data.database import engine
-from data.models.models import UserCourse
+from data.models.models import UserCourse, Utility
 from data.schemas.course_schema import CourseSchema, CourseSchemaUpdate
 from helper.link import create_link
 from pydantic import Json
@@ -14,7 +14,7 @@ from sqlalchemy import (JSON, BigInteger, Column, DateTime, Float, Integer,
 from sqlalchemy.orm import Session
 from sqlalchemy.schema import CreateTable, DropTable
 
-from helper.db_scripts import create_course_Info, create_update_info
+from helper.db_scripts import create_course_Info, create_update_info, reindex
 
 def db_create_user_course(
     user_id,
@@ -117,9 +117,7 @@ def db_create_course(id:str, course_input: CourseSchema, db:Session):
     TABLE_SPEC = []
     type_dict = {'string': String, 'number': Integer, 'file': String}
     for c in course_input.courseDetails:
-        # temp = list(c.items())
-        # n = temp[0][0]
-        # t = (temp[0][1]).lower()
+
         n = (c['fieldName']).replace(" ", "_")
         t = c['fieldType']
         if t == 'file':
@@ -131,6 +129,7 @@ def db_create_course(id:str, course_input: CourseSchema, db:Session):
 
     columns = [Column(n, t) for n, t in TABLE_SPEC]
     columns.append(Column('id', Integer, primary_key=True))
+    columns.append(Column('recordID', Integer))
     table = Table(TABLE_NAME, MetaData(), *columns)
 
     table_creation_sql = CreateTable(table)
@@ -147,6 +146,7 @@ def db_create_course(id:str, course_input: CourseSchema, db:Session):
     db.add(user_course)
     db.commit()
     db.refresh(user_course)
+    return user_course.id
 
 
 def db_get_course_details(id: int, db:Session):
@@ -165,16 +165,34 @@ def db_get_course_details(id: int, db:Session):
 
     return result_dict, field_dict
 
-def db_course_insert(course, course_input: CourseSchemaUpdate):
-
-    # Convert request body to database processable entities
-    col_name_literal, col_value_literal =  create_update_info(course_input.courseInfo)
+def db_course_insert(course, course_input: CourseSchemaUpdate, db: Session):
     
+    # Updating an existing row
     if course_input.recordID:
+        # Convert request body to database processable entities
+        col_name_literal, col_value_literal =  create_update_info(course_input.courseInfo)
+        record_id = course_input.recordID['recordID']
         sql = """
-        UPDATE {table} SET ({cols}) = ({vals}) WHERE ID = {id}
-        """.format(table=course.table_name, cols=col_name_literal, vals=col_value_literal, id=course_input.recordID)
+        UPDATE {table} SET ({cols}) = ({vals}) WHERE recordID = {id}
+        """.format(table=course.table_name, cols=col_name_literal, vals=col_value_literal, id=record_id)
+    
+    # Creating a new row
     else:
+        # Update utility table
+        course_util = db.query(Utility).filter(Utility.course_id == course.id).first()
+        course_util.max_record = course_util.max_record + 1
+        db.commit()
+        db.refresh(course_util)
+        course_input.courseInfo.append({
+            'fieldName': 'recordID',
+            'fieldValue': course_util.max_record
+        })
+
+        # Convert request body to database processable entities
+        col_name_literal, col_value_literal =  create_update_info((course_input.courseInfo))
+        print(col_name_literal)
+        print(col_value_literal)
+        # Update course table
         sql = """
         INSERT INTO {table}({cols}) VALUES ({vals})
         """.format(table=course.table_name, cols=col_name_literal, vals=col_value_literal)
@@ -183,11 +201,30 @@ def db_course_insert(course, course_input: CourseSchemaUpdate):
         cur = conn.cursor()
         cur.executescript(sql)    
 
-def db_course_update_row():
-    pass
 
-def db_delete_course_record(table_name, record_id):
-    stmt = f"DELETE FROM {table_name} WHERE id={record_id}"
+def db_delete_course_record(table_name, record_id, db: Session, course): 
+
+    # Delete record from course table  
+    stmt = f"DELETE FROM {table_name} WHERE recordID={record_id}"
     with sqlite3.connect("testDB.db", check_same_thread=False) as conn:
         cur = conn.cursor()
         cur.executescript(stmt)
+
+    # Update index
+    reindex(table_name, record_id)
+
+    # Update utility table
+    course_util = db.query(Utility).filter(Utility.course_id == course.id).first()
+    course_util.max_record = course_util.max_record -1
+    db.commit()
+    db.refresh(course_util)
+
+
+def db_add_course_to_utility(id, db: Session):
+    utility_course = Utility(
+        course_id = id,
+        max_record = -1
+    )
+    db.add(utility_course)
+    db.commit()
+    db.refresh(utility_course)
