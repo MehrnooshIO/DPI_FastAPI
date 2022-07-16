@@ -15,4 +15,4 @@ class CourseSchemaUpdate(BaseModel):
 
 
 class DeleteRecord(BaseModel):
-    recordID: int
+    recordID: dict

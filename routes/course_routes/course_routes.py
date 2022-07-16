@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Response, UploadFile, status, HTTPException, File
 from sqlalchemy.orm import Session
 from sqlalchemy import inspect
-from data.crud.course_crud import db_get_all_courses, db_get_course_link
+from data.crud.course_crud import db_get_course_link
 from data.crud import course_crud
 from data.schemas.course_schema import CourseSchema, CourseSchemaUpdate, DeleteRecord
 from data.database import get_db
@@ -230,7 +230,7 @@ def course_router() -> APIRouter:
             )
         
         table_name = course.table_name
-        course_crud.db_delete_course_record(table_name, id.recordID, db, course)
+        course_crud.db_delete_course_record(table_name, id.recordID['recordID'], db, course)
         return {
             "statusCode": status.HTTP_200_OK,
             "title": "Success",
